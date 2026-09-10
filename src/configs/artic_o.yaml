@@ -1,0 +1,230 @@
+# artic-o — evaluation config (Artic-O, SIGGRAPH Asia).
+#
+# This is the exact architecture / loss / alignment configuration that
+# produced the paper's numbers, retargeted to the released asset layout.
+# The model, `articulated_loss`, and `alignment` blocks are byte-identical
+# to the config used for training; only paths and pretrain flags differ.
+#
+# Two blocks below look like training config but are load-bearing at eval:
+#   * `train_dataloader` is NEVER built by eval.py (it only builds
+#     `val_dataloader.dataset`). It is read for one field:
+#     `exclude_categories: [Oven]`, which `ReconTrainer._ood_categories`
+#     uses to route Oven into the OOD bucket. Removing it silently changes
+#     the reported table.
+#   * `trainer.optim` is read unconditionally when the trainer is
+#     constructed (`src/trainer/base_trainer.py`), even for a pure eval
+#     run. The optimizer is built and never stepped.
+#
+# Weights come from `--ckpt-path` on the command line, so `load_pretrain`
+# is false here.
+
+trainer_class: ArticOTrainer
+
+train_dataloader:
+  num_workers: 8
+  batch_size: 8
+  dataset:
+    name: ArticODataset
+    params:
+      hf_path: ./data/artic_o_test
+      split: train
+      num_points: 8192
+      sampling: merged
+      num_views_per_state: 3
+      views_source: both
+      anchor_state: s1
+      resolution: 224
+      state_mode: one
+      target_median: 3.0
+      augment: false
+      load_in_memory: false
+      repeat: 10
+      split_json: ./data/larm_train_test_list.json
+      exclude_categories: [Oven]
+      min_active_visible_frac: 0.00
+      seed: 0
+
+val_dataloader:
+  num_workers: 1
+  batch_size: 1
+  dataset:
+    name: ArticODataset
+    params:
+      hf_path: ./data/artic_o_test
+      split: test
+      num_points: 30000
+      sampling: merged
+      num_views_per_state: 3
+      views_source: both
+      anchor_state: s1
+      resolution: 224
+      state_mode: one
+      target_median: 3.0
+      augment: false
+      load_in_memory: false
+      repeat: 1
+      split_json: ./data/larm_train_test_list.json
+      min_active_visible_frac: 0.00
+      seed: 0
+      # Deterministic per-sample view picks for val. KMeans++-seeded
+      # over our 128 c2w positions per state (3 from s0 with seed=0,
+      # 3 from s1 with seed=12345) — same algorithm/params LARM used at
+      # reproduction time on its render set, applied to ours. Removes
+      # the run-to-run val noise (~3pp on axis_angle) and makes our
+      # numbers directly LARM-comparable in the "what views the model
+      # sees" sense. Build via ``scripts/build_val_view_picks.py``.
+      val_view_picks_path: ./data/val_views.json
+
+resolution: 224
+input_n: 4
+target_n: 0
+
+eval_states: [0.0, 0.25, 0.5, 0.75, 1.0]
+
+model:
+  name: Nova3rImgCondArticulated
+  params:
+    img_size: 224
+    patch_size: 14
+    embed_dim: 1024
+    num_3d_tokens: 768
+    seg_head:
+      type: image_grounded_pat
+      num_classes: 2
+      bank_size: 128
+      bank_layers: 2
+      pat_layers: 2
+      n_heads: 4
+      mlp_ratio: 4.0
+      dropout: 0.0
+      kv_sources: [image, scene]
+    state_embedding: true
+    articulation_head:
+      motion_representation: per_point_closest
+    cfg:
+      aggregator:
+        name: AggregatorPts3D
+        params:
+          img_size: 224
+          patch_size: 14
+          embed_dim: 1024
+          depth: 16
+          num_heads: 16
+          mlp_ratio: 4.0
+          num_register_tokens: 4
+          qkv_bias: true
+          proj_bias: true
+          ffn_bias: true
+          patch_embed: dinov2_vitl14_reg
+          aa_order:
+          - frame
+          - global
+          - pts3d
+          aa_block_size: 1
+          qk_norm: true
+          rope_freq: 100
+          init_values: 0.01
+          num_3d_tokens: ${model.params.num_3d_tokens}
+          token_dim_3d: 1024
+          pos_3d_embed_type: None
+          token_3d_embed_config:
+            name: Token3DEmbedMLP
+            params:
+              dim: 1024
+              mlp_ratio: 2.0
+              use_cond_embed: first
+          share_3d_attn: true
+          depth_3d_stride: 2
+          token_dim: 128
+          detach_vit_token: true
+          use_image_token: true
+      point_head:
+        name: DPTHead
+      pts3d_head:
+        name: PointJointFMDecoderV2
+        params:
+          output_dim: 3
+          num_3d_tokens: ${model.params.num_3d_tokens}
+          has_conf: true
+          conf_activation: expp1
+          rgb_activation: sigmoid
+          pts_activation: linear
+          use_sdpa: true
+          cross_depth: 3
+          self_depth: 3
+          dim_model: 128
+          num_virtual_tracks: 512
+          dim_in: 128
+          token_reduce_dim: 128
+          share_t: true
+          norm_mode: median_3
+          target_source: src_complete
+          query_source: src_complete
+          sample_size: 8192
+          down_resolution: 224
+          target_sampling: fps_edge_fast
+          use_filter: false
+
+layers_to_freeze:
+- pts3d_head
+
+fm_step_size: 0.04
+fm_sampling: euler
+amp_dtype: bf16
+
+articulated_loss:
+  seg: 1.0
+  rev_axis_dir: 0.3
+  rev_closest_pt: 0.3
+  rev_range: 0.3
+  pris_axis: 0.3
+  pris_range: 0.3
+  axis_unit: 0.05
+
+trainer:
+  optim:
+    lr: 3.0e-4
+    backbone_lr: 3.0e-5
+    head_prefixes: [seg_head, articulation_head]
+    weight_decay: 1e-4
+    betas: [0.9, 0.999]
+    min_lr: 1.0e-7
+    warmup_steps: 1000
+    grad_clip: 1.0
+  train_cfg:
+    max_epochs: 24
+    val_interval: 1
+    save_checkpoint_interval: 12
+    save_pcd_interval: 5
+    val_type: epoch_base
+    skewed_timesteps: true
+    # Decouple FM and seg/art training distributions. Pass 1 stays on
+    # the merged xt schedule (skewed [0, 1]); pass 2 runs the seg/art
+    # heads on a separately-sampled t_sa, mixing skewed [0, 1] with a
+    # fraction at exact t=1 (the clean-GT anchor) controlled below.
+    two_pass_seg_art: true
+    # Fraction of pass-2 samples pinned at t=1 (clean-GT query). 0.3 is
+    # the sweep winner — see Phase 1 in
+    # ``docs/sweep/phase5b_se_pp_ft_xt_t_sweep/sweep_log.md``.
+    t1_anchor_frac: 0.3
+    # Soft-truncate t_sa to [t_sa_min, 1] via linear remap of the
+    # skewed schedule. Default 0.0 = no truncate. Phase 3 found no
+    # value > 0 strictly beats 0; left here as a knob for follow-ons.
+    t_sa_min: 0.0
+    logging_interval: 10
+
+find_unused_parameters: true
+# Eval loads weights via `--ckpt-path`; no curriculum checkpoint is needed.
+load_pretrain: false
+
+val_num_queries: 30000
+
+alignment:
+  filter_before: true
+  filter_after: true
+  outlier_nb_neighbors: 50
+  outlier_std_ratio: 2.0
+  cham_iters: 100
+  cham_lr: 0.01
+  cham_num_sample: null
+  seed: 0

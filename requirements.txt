@@ -1,0 +1,32 @@
+# Artic-O — evaluation dependencies.
+#
+# Four packages are NOT installable from this file and need their own index or
+# a source build (see README "Environmental setup"):
+#
+#   torch, torchvision   --index-url https://download.pytorch.org/whl/cu124
+#   torch-cluster        -f https://data.pyg.org/whl/torch-2.6.0+cu124.html
+#   pytorch3d            pip install -v --no-build-isolation \
+#                          "git+https://github.com/facebookresearch/pytorch3d.git"
+
+# Core
+numpy
+scipy
+einops
+tqdm
+pillow
+opencv-python
+
+# Config
+omegaconf
+
+# Geometry / point clouds
+trimesh
+open3d
+
+# Model building blocks
+diffusers
+flow-matching
+
+# Dataset loading
+datasets>=2.19
+huggingface-hub[torch]>=0.22

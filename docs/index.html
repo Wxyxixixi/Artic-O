@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Artic-O: End-to-End Articulated Object Reconstruction via Latent Geometry Learning</title>
+<meta name="description" content="Artic-O reconstructs complete geometry, movable parts, and motion parameters of articulated objects from sparse images in 0.32 seconds. SIGGRAPH Asia 2026.">
+<meta property="og:title" content="Artic-O: End-to-End Articulated Object Reconstruction via Latent Geometry Learning">
+<meta property="og:description" content="End-to-end articulated object reconstruction via latent geometry learning. SIGGRAPH Asia 2026.">
+<meta property="og:url" content="https://wxyxixixi.github.io/Artic-O/">
+<meta property="og:image" content="https://wxyxixixi.github.io/Artic-O/assets/teaser.png">
+<meta property="og:image:alt" content="Artic-O reconstructs an articulated object from sparse images at two states, recovering complete geometry, the movable part, and joint parameters in a single feed-forward pass.">
+<meta property="og:site_name" content="Artic-O">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://wxyxixixi.github.io/Artic-O/">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1a1d21; --muted:#5c6470; --rule:#e3e6ea;
+    --accent:#0b6b5e; --accent-soft:#e6f2f0; --card:#f7f8f9;
+    --maxw:1080px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12151a; --fg:#e8eaed; --muted:#9aa3ae; --rule:#262b33;
+      --accent:#5fd3bd; --accent-soft:#16302c; --card:#1a1e25;
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; font-size:17px;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  figure.narrow{max-width:660px; margin-left:auto; margin-right:auto}
+  figure.narrow figcaption{text-align:left}
+  @media (max-width:700px){ figure.narrow{max-width:100%} }
+
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  header{padding:64px 0 8px; text-align:center}
+  h1{
+    font-size:clamp(30px,4.4vw,44px); line-height:1.15; margin:0 0 10px;
+    letter-spacing:-0.02em; font-weight:700;
+  }
+  .subtitle{
+    font-size:clamp(21px,2.9vw,29px); line-height:1.3; margin:0 0 28px;
+    color:var(--fg); font-weight:600; letter-spacing:-0.015em; text-wrap:balance;
+  }
+  .authors{font-size:17px; margin:0 0 6px}
+  .authors a{color:var(--fg); text-decoration:underline;
+             text-decoration-color:var(--accent); text-underline-offset:3px;
+             text-decoration-thickness:1px}
+  .authors a:hover{color:var(--accent)}
+  .authors sup{color:var(--accent); font-size:12px}
+  .affil{font-size:14.5px; color:var(--muted); margin:6px 0 4px}
+  .note{font-size:13px; color:var(--muted); margin:0 0 26px; font-style:italic}
+  .venue{
+    display:inline-block; font-size:14px; font-weight:600; letter-spacing:.02em;
+    background:var(--accent-soft); color:var(--accent);
+    padding:6px 14px; border-radius:999px; margin-bottom:26px;
+  }
+
+  .links{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:0 0 8px}
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:9px 18px; border-radius:8px; border:1px solid var(--rule);
+    background:var(--card); color:var(--fg); font-size:15px; font-weight:500;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .btn:hover{border-color:var(--accent); text-decoration:none; transform:translateY(-1px)}
+  .btn svg{width:16px; height:16px; fill:currentColor; flex:none}
+
+  section{padding:46px 0; border-top:1px solid var(--rule)}
+  section:first-of-type{border-top:none}
+  h2{font-size:25px; margin:0 0 18px; letter-spacing:-0.01em}
+  p{margin:0 0 16px}
+
+  figure{margin:0 0 8px}
+  figure img{
+    width:100%; height:auto; display:block;
+    border:1px solid var(--rule); border-radius:10px; background:#fff;
+  }
+  figcaption{font-size:14.5px; color:var(--muted); margin-top:12px; text-align:left}
+  figcaption b{color:var(--fg); font-weight:600}
+
+  .hero{padding:26px 0 46px}
+  .hero figure img{border-radius:12px}
+
+  .stats{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:14px; margin:6px 0 26px;
+  }
+  .stat{
+    background:var(--card); border:1px solid var(--rule);
+    border-radius:10px; padding:18px 20px;
+  }
+  .stat .v{font-size:27px; font-weight:700; letter-spacing:-0.02em; color:var(--accent)}
+  .stat .k{font-size:13.5px; color:var(--muted); margin-top:3px}
+
+  .tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse; width:100%; font-size:15.5px; min-width:520px}
+  th,td{padding:11px 14px; text-align:right; border-bottom:1px solid var(--rule)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:13.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600}
+  tbody tr:last-child td{border-bottom:none}
+  td.win{color:var(--accent); font-weight:650}
+
+  pre{
+    background:var(--card); border:1px solid var(--rule); border-radius:10px;
+    padding:18px 20px; overflow-x:auto; font-size:13.5px; line-height:1.55;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; margin:0;
+  }
+  .bibhead{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px}
+  .bibhead h2{margin:0}
+  #copy{
+    padding:7px 14px; border-radius:7px; border:1px solid var(--rule);
+    background:var(--card); color:var(--fg); font-size:14px; cursor:pointer;
+    font-family:inherit;
+  }
+  #copy:hover{border-color:var(--accent)}
+
+  footer{
+    border-top:1px solid var(--rule); padding:32px 0 60px;
+    font-size:14.5px; color:var(--muted);
+  }
+  footer p{margin:0 0 10px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <h1>Artic-O</h1>
+  <p class="subtitle">End-to-End Articulated Object Reconstruction via Latent Geometry Learning</p>
+
+  <p class="authors">
+    <a href="https://wxyxixixi.github.io/" target="_blank" rel="noopener">Xuyang Wang</a><sup>1,2,&ast;</sup> &nbsp;
+    <a href="https://zhyever.github.io/" target="_blank" rel="noopener">Zhenyu Li</a><sup>2</sup> &nbsp;
+    <a href="https://dingjiansw101.github.io/" target="_blank" rel="noopener">Jian Ding</a><sup>2,&dagger;</sup> &nbsp;
+    <a href="https://habibslim.github.io/" target="_blank" rel="noopener">Habib Slim</a><sup>2</sup> &nbsp;
+    <a href="https://scholar.google.com/citations?user=0EKXSXgAAAAJ&amp;hl=en" target="_blank" rel="noopener">Peter Wonka</a><sup>2</sup> &nbsp;
+    <a href="https://scholar.google.com/citations?user=Mq89JAcAAAAJ&amp;hl=en" target="_blank" rel="noopener">Hongdong Li</a><sup>1</sup> &nbsp;
+    <a href="https://scholar.google.com/citations?user=iRBUTOAAAAAJ&amp;hl=en" target="_blank" rel="noopener">Mohamed Elhoseiny</a><sup>2</sup>
+  </p>
+  <p class="affil"><sup>1</sup>Australian National University &nbsp;&nbsp; <sup>2</sup>KAUST</p>
+  <p class="note">&ast; Work done during the author's research internship at KAUST. &nbsp; &dagger; Project lead.</p>
+
+  <div class="venue">SIGGRAPH Asia 2026 &middot; Kuala Lumpur &middot; December 1&ndash;4, 2026</div>
+
+  <!-- Paper button removed: the ACM DOI is not registered until publication
+       (~Dec 2026) and currently 404s. Restore it then. -->
+  <div class="links">
+    <a class="btn" href="https://arxiv.org/abs/2606.21938">
+      <svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-4-7 4z"/></svg> arXiv
+    </a>
+    <a class="btn" href="https://github.com/Wxyxixixi/Artic-O">
+      <svg viewBox="0 0 24 24"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.06-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.79 2.73 1.27 3.4.97.1-.75.4-1.27.73-1.56-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg> Code
+    </a>
+    <a class="btn" href="https://huggingface.co/wxyxixixi/artic-o">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg> Model
+    </a>
+    <a class="btn" href="https://huggingface.co/datasets/wxyxixixi/artic-o-data">
+      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3.2"/><path d="M4 9v4c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2V9c0 1.8-3.6 3.2-8 3.2S4 10.8 4 9z"/><path d="M4 16v2c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2v-2c0 1.8-3.6 3.2-8 3.2S4 17.8 4 16z"/></svg> Data
+    </a>
+  </div>
+</header>
+
+<div class="hero">
+  <figure>
+    <img src="assets/teaser.png" alt="Artic-O takes sparse images of an object at an open and a closed state and predicts complete geometry, the movable part, and joint parameters in 0.32 seconds, then poses the object at arbitrary articulation states.">
+    <figcaption>
+      From sparse images at two articulation states, <b>Artic-O</b> predicts complete
+      geometry, the active part, and joint parameters in a single feed-forward pass
+      (<b>0.32 s</b>). Forward kinematics then poses the object at any intermediate
+      state. Right: quality against inference cost versus prior work.
+    </figcaption>
+  </figure>
+</div>
+
+<section>
+  <h2>Abstract</h2>
+  <p>
+    Reconstructing articulated objects from sparse images requires recovering complete
+    geometry, movable parts, and motion parameters. Recent methods typically separate
+    geometry reconstruction, part reasoning, and articulation estimation into different
+    stages. This separation can weaken consistency between shape, active parts, and
+    motion, while also incurring substantial inference cost.
+  </p>
+  <p>
+    We introduce <b>Artic-O</b>, an end-to-end, feed-forward framework for articulated
+    object reconstruction via latent geometry learning. Instead of fitting geometry in
+    image or view space, Artic-O maps sparse multi-state observations into a pretrained
+    latent geometry space, where a frozen flow-matching decoder provides a complete-shape
+    prior for recovering visible and occluded structures. To connect geometry with
+    articulation, Artic-O fuses visual tokens, geometry latents, and point-wise decoder
+    features in an image-grounded part-reasoning module for active-part segmentation and
+    articulation prediction. We further train the model with a geometry-to-articulation
+    curriculum and a decoupled two-pass strategy to balance reconstruction and part-level
+    supervision.
+  </p>
+  <p>
+    On PartNet-Mobility, Artic-O achieves strong reconstruction quality while being
+    substantially more efficient than LARM, a strong prior method. It reduces Chamfer
+    Distance, improves F-score, and achieves comparable or better articulation accuracy
+    across most joint metrics, while reducing inference time from 9 minutes to about
+    0.3 seconds per object.
+  </p>
+</section>
+
+<section>
+  <h2>Method</h2>
+  <figure>
+    <img src="assets/method_overview.png" alt="Artic-O architecture: a state-aware image encoder built on DINOv2 with state embedding injection, a geometry latent attended jointly with image tokens, a frozen flow-matching shape decoder, and an image-grounded segmentation module feeding articulation heads.">
+    <figcaption>
+      A <b>state-aware image encoder</b> injects a learned state embedding into DINOv2
+      features and attends them jointly with a geometry latent. A <b>frozen shape decoder</b>
+      turns that latent into a complete point cloud, supplying the completion prior.
+      An <b>image-grounded part-reasoning module</b> — an image memory bank plus PAT slot
+      blocks — splits context from active slots, driving the segmentation and
+      articulation heads.
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Results</h2>
+
+  <div class="stats">
+    <div class="stat"><div class="v">0.32 s</div><div class="k">per object, versus 9 min for LARM</div></div>
+    <div class="stat"><div class="v">&minus;15%</div><div class="k">Chamfer Distance versus LARM</div></div>
+    <div class="stat"><div class="v">+2.4 pp</div><div class="k">F1@0.05 versus LARM</div></div>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Artic-O</th><th>LARM</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Chamfer Distance &darr;</td><td class="win">0.01661</td><td>0.0196</td></tr>
+        <tr><td>F1@0.05 &uarr;</td><td class="win">0.9578</td><td>0.9337</td></tr>
+        <tr><td>Axis angle @0.25 &uarr;</td><td>0.9490</td><td class="win">0.9570</td></tr>
+        <tr><td>Axis origin @0.15 &uarr;</td><td class="win">0.9804</td><td>0.9690</td></tr>
+        <tr><td>Motion range @0.3 &uarr;</td><td class="win">0.9216</td><td>0.8550</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:14.5px;color:var(--muted);margin-top:12px">
+    PartNet-Mobility, averaged over five articulation states, on the LARM-comparable
+    subset (n = 255) with deterministic view selection. Artic-O leads on four of five
+    reported metrics.
+  </p>
+
+  <figure style="margin-top:34px">
+    <img src="assets/visual_compare.png" alt="Qualitative comparison against LARM and ground truth at articulation states 0.25 and 0.75 for a cabinet, a shelf, a trash can, and a drawer.">
+    <figcaption>
+      Qualitative comparison at states 0.25 and 0.75. Context geometry in blue, the
+      predicted movable part in amber, the estimated joint axis in red (revolute) or
+      green (prismatic). Artic-O recovers interior structure — shelves, cavities, drawer
+      boxes — that view-conditioned reconstruction leaves hollow or broken.
+    </figcaption>
+  </figure>
+
+</section>
+
+<section>
+  <h2>Interior geometry</h2>
+  <figure class="narrow">
+    <img src="assets/cut.png" alt="Two objects, a shelf unit and a chest of drawers, each shown with a cut plane through the reconstruction and the resulting cutaway. LARM, Artic-O and ground truth are compared side by side; LARM's interiors are largely empty while Artic-O reproduces the shelves and dividers present in the ground truth.">
+    <figcaption>
+      Slicing the reconstructions open. The top row of each pair places a cut plane
+      through the object; the bottom row shows the geometry behind it. LARM leaves the
+      interior hollow — the shelves and dividers simply are not there, because nothing
+      in the input views observes them. Artic-O completes them, closely matching the
+      ground-truth interior.
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>In the wild</h2>
+  <figure class="narrow">
+    <img src="assets/in_the_wild.png" alt="Two real objects photographed by hand — a kitchen wall cabinet and a bedside table — each shown at two articulation states, alongside the predicted articulated reconstruction at states 0.25 and 0.75 with the recovered hinge axis drawn in red.">
+    <figcaption>
+      Handheld photographs of a kitchen wall cabinet and a bedside table, with no
+      calibration, no camera poses and no ground truth. From three casual shots at each
+      of two states, Artic-O separates the door from the body, recovers the interior
+      shelving, and places a plausible hinge axis (red). The reconstructions are then
+      posed at intermediate states the photographs never show.
+    </figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Code and models</h2>
+  <p>
+    The release includes evaluation and inference code, the trained checkpoint, and the
+    test split — enough to reproduce the benchmark table above and to run the model on a
+    test object end to end. Training code and the data-construction pipeline are not
+    included.
+  </p>
+  <pre>git clone https://github.com/Wxyxixixi/Artic-O.git
+cd Artic-O
+pip install -r requirements.txt
+bash scripts/fetch_third_party.sh
+
+hf download wxyxixixi/artic-o artic_o_s0_36.pth --local-dir ./checkpoints/
+hf download wxyxixixi/artic-o-data --repo-type dataset --local-dir ./data/
+
+bash scripts/verify_benchmark.sh</pre>
+</section>
+
+<section>
+  <div class="bibhead">
+    <h2>Citation</h2>
+    <button id="copy" type="button">Copy</button>
+  </div>
+<pre id="bib">@article{wang2026artic,
+  title={Artic-O: End-to-End Articulated Object Reconstruction via Latent Geometry Learning},
+  author={Wang, Xuyang and Li, Zhenyu and Ding, Jian and Slim, Habib and Wonka, Peter and Li, Hongdong and Elhoseiny, Mohamed},
+  journal={arXiv preprint arXiv:2606.21938},
+  year={2026}
+}</pre>
+</section>
+
+<footer>
+  <p>
+    Built on <a href="https://github.com/naver/croco">CroCo</a>,
+    <a href="https://github.com/VAST-AI-Research/TripoSG">TripoSG</a>, and NOVA3R.
+    Data derives from <a href="https://sapien.ucsd.edu/browse">PartNet-Mobility</a>.
+  </p>
+  <p>
+    The paper is published by ACM under CC BY 4.0. The code in the repository is MIT
+    licensed. CroCo and TripoSG are fetched from upstream at install time and stay
+    under their own licenses, and the released checkpoint is for non-commercial
+    research use &mdash; see THIRD_PARTY-NOTICES.md in the repository.
+  </p>
+</footer>
+
+</div>
+
+<script>
+  document.getElementById('copy').addEventListener('click', function () {
+    var btn = this;
+    navigator.clipboard.writeText(document.getElementById('bib').textContent).then(
+      function () {
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+      },
+      function () { btn.textContent = 'Press Ctrl+C'; }
+    );
+  });
+</script>
+
+</body>
+</html>
