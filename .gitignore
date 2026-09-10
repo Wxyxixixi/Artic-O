@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+.pixi/*
+!.pixi/config.toml
+
+# Downloaded assets (see data/README.md, checkpoints/README.md)
+data/*
+!data/README.md
+checkpoints/*
+!checkpoints/README.md
+
+# Run outputs
+work_dirs/
+outputs/
+*.log
+
+# Optional Blender install
+third_party/blender/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Fetched by scripts/fetch_third_party.sh, not vendored (see THIRD_PARTY-NOTICES.md)
+third_party/
